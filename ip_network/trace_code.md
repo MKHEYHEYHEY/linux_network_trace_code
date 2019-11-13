@@ -6,7 +6,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 	struct net_device *orig_dev;  
 	skb_reset_network_header(skb);  
 	if (!skb_transport_header_was_set(skb))
-	&#9;skb_reset_transport_header(skb);  
+		skb_reset_transport_header(skb);  
 	skb_reset_mac_len(skb);  
 	skb->skb_iif = skb->dev->ifindex;  
 	list_for_each_entry_rcu(ptype, &skb->dev->ptype_all, list)  
@@ -17,7 +17,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 }  
 ```
 ## deliver_skb ()
-
+```c++
 static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,			      struct net_device *orig_dev)
 {
 	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
@@ -25,7 +25,7 @@ static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,		
 	atomic_inc(&skb->users);
 	return pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
-
+```
 //pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 
 //跟據不同的protocol 做不同的處理, 例:ip_rcv, arp_rcv
@@ -34,17 +34,17 @@ static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,		
 ## ip_rcv()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/0_ip_rcv.png)
 
-##ip_rcv_finish()
+## ip_rcv_finish()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/1_ip_rcv_finish.png)
 ip_route_input_noref函數中已經知道要轉發封包還是本機接收
 dst_input()調用到rtable.dst_entry->input()，根據路由不同，因應情況呼叫ip_forward/ip_local_deliver
 	ip_forward -> ip_forward_finish -> ip_output
 	ip_local_deliver -> ip_local_deliver_finish
 
-##ip_local_deliver()
+## ip_local_deliver()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/2_ip_local_deliver.png)
 
-###ip_defrag()
+### ip_defrag()
 ip_defrag() 的處理流程
 ip_defrag() -> ip_find() -> ip_frag_queue() -> ip_frag_reasm() 
 
@@ -52,9 +52,9 @@ ip_find()：創建queue
 ip_frag_queue()：等待所有封包分片
 ip_frag_reasm()：把封包組合起來
 
-##ip_local_deliver_finish()
+## ip_local_deliver_finish()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/3_ip_local_deliver_finish.png)
-
+```c++
 /*
 __skb_pull()：
 刪去ip header
@@ -65,15 +65,15 @@ rcu_dereference()：
 ret = ipprot-> handler()：
 封包進入udp tcp傳輸層
 */
-
-#Send Packet
-##ip_queue_xmit
+```
+# Send Packet
+## ip_queue_xmit
 
 tcp_write_xmit (alloc skb) 
 |->  tcp_transmit_skb (skb_push(skb, tcp_header_size))
       |-> ip_queue_xmit (daddr = inet->inet_daddr, 嘗試查找路由緩存, 增加ip header)
 	|-> ip_local_out()
-
+```c++
 int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -91,8 +91,9 @@ int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 }
 
 //.start_fw = iwl_trans_pcie_start_fw
-
-##__ip_route_output_key_hash
+```
+## __ip_route_output_key_hash
+```c++
 struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 					  int mp_hash)
 {
@@ -105,39 +106,39 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 
 }
 //ip_route_output_ports() -> ip_route_output_flow() -> __ip_route_output_key_hash() 
-
-##ip_local_out()
+```
+## ip_local_out()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/4_ip_local_out.png)
-
+```
 /* 調用網絡過濾器檢查封包是否可以發送 */ 
 err = __ip_local_out(net, sk, skb);
 /* 當err為1時，表明本地產生的數據經過HOOK函數NF_IP_LOCAL_OUT進行路由選擇處理。在此調用dst_output來進行下一步處理 */ 
 /* dst.h dst_output 即 ip_output() */ 
-
-##ip_output()
+```
+## ip_output()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/5_ip_output.png)
 // 檢查 iptable 有沒有設定甚麼條件, 沒有的話直接到 ip_finish_output() 
 return NF_HOOK_COND()
 
-##ip_finish_output()
+## ip_finish_output()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/6_ip_finish_output.png)
 
 //調用ip_fragment() 對封包做分片後發送，或直接調用ip_finish_output2() 發送
 
-##ip_do_fragment()
+## ip_do_fragment()
 如果4層將封包分片了， 那麼就會把這些封包放到SKB的frag_list鍊錶中， 因此我們這里首先先判斷frag_list鍊錶是否為空，為空的話我們將會進行slow path切片
 
 一般用快速切片的都是經由4層的ip_append_data和ip_push_pending函數（UDP） 將封包已經切片好的，或者是TCP層已經切片好的封包，才會用快速切片
 
 切片時，每切一片就會立即發送出去，發送出去後不會暫存在記憶體中
 
-###ip_do_fragment() – fast path
+### ip_do_fragment() – fast path
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/7_ip_do_fragment.png)
 
 /*發送分片 output 就是 ip_finish_output2()*/ 
 err = output(net, sk, skb2);
 
-###ip_do_fragment() – slow path
+### ip_do_fragment() – slow path
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/8_ip_do_fragment-slow%20path.png)
 
 /* 開始分片，開始為迴圈處理，每一個分片創建一個skb buffer */
@@ -150,19 +151,20 @@ err = output(net, sk, skb2);
 */ 
 err = output(net, sk, skb2);
 
-##ip_finish_output2()
+## ip_finish_output2()
 鄰居子系統: 路由子系統確定了封包要發送到的IP地址， 而在將封包提交給鏈路層之前，還需要知道目的主機的Mac的地址，這就是鄰居子系統做的事情
 
 調用__ipv4_neigh_lookup_noref進行鄰居子系統的表查找，IPv4的主要是ARP表，查找到的ARP表，則調用dst_neigh_output -> neigh_hh_output -> dev_queue_xmit進行封包發送
  
 如果沒有查找到，則調用__neigh_create -> arp_constructor進行發送等函數的裝載，最後也調用dst_neigh_output
 
-##neigh_hh_output()
+## neigh_hh_output()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/10_neigh_hh_output.png)
 
 /*把 eth header 複制到sk_buffer的封包，再調用dev_queue_xmit進行硬件發送*/
 
-##dev_queue_xmit()
+## dev_queue_xmit()
+```c++
 int dev_queue_xmit(struct sk_buff *skb)
 {	return __dev_queue_xmit(skb, NULL);	}
 
@@ -175,11 +177,12 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	{	rc = __dev_xmit_skb(skb, q, dev, txq);	goto out;	}	//*
 	skb = dev_hard_start_xmit(skb, dev, txq, &rc);	//*
 }
-
+```
 //path:net\mac80211\rx.c
 //.start_fw = iwl_trans_pcie_start_fw,
 
-##dev_hard_start_xmit()
+## dev_hard_start_xmit()
+```
 struct sk_buff *dev_hard_start_xmit
 			(struct sk_buff *first, struct net_device *dev,
 			 struct netdev_queue *txq, int *ret)
@@ -193,8 +196,9 @@ struct sk_buff *dev_hard_start_xmit
 		rc = xmit_one(skb, dev, txq, next != NULL);	//*
 	}
 }
-
-##xmit_one()
+```
+## xmit_one()
+```c++
 static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 		    struct netdev_queue *txq, bool more)
 {
@@ -205,8 +209,9 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	rc = netdev_start_xmit(skb, dev, txq, more);
 }
-
-##netdev_start_xmit()
+```
+## netdev_start_xmit()
+```c++
 static inline netdev_tx_t netdev_start_xmit (struct sk_buff *skb, 
 	struct net_device *dev, struct netdev_queue *txq, bool more)
 {
@@ -222,8 +227,9 @@ static inline netdev_tx_t __netdev_start_xmit(ops, skb, dev, more)
 	skb->xmit_more = more ? 1 : 0;
 	return ops->ndo_start_xmit(skb, dev);	//*
 }
-
-##net\mac80211\Iface.c
+```
+## net\mac80211\Iface.c
+```
 static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_open		= ieee80211_open,
 	.ndo_stop		= ieee80211_stop,
@@ -234,8 +240,9 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_select_queue	= ieee80211_netdev_select_queue,
 	.ndo_get_stats64	= ieee80211_get_stats64,
 };
-
-##net\mac80211\Iface.c
+```
+## net\mac80211\Iface.c
+```c++
 void __ieee80211_subif_start_xmit
 	(struct sk_buff *skb, struct net_device *dev, u32 info_flags)
 {
@@ -252,20 +259,22 @@ void __ieee80211_subif_start_xmit
 		ieee80211_xmit(sdata, sta, skb);	//*
 	}
 }
-
-##net\mac80211\Iface.c
+```
+## net\mac80211\Iface.c
+```c++
 const struct ieee80211_ops iwl_mvm_hw_ops = 
 {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
-	.start = iwl_mvm_mac_start,
+	.start = iwl_mvm_mac_start,	//*
 	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
 	.stop = iwl_mvm_mac_stop,
 	.add_interface = iwl_mvm_mac_add_interface,
-	......
+	//......
 }
-
-##iwl_mvm_mac_tx
+```
+## iwl_mvm_mac_tx
+```c++
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_control *control,
 			   struct sk_buff *skb)
@@ -276,8 +285,9 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	
 	 iwl_mvm_tx_skb(mvm, skb, sta);	//*
 }
-
-##iwl_mvm_tx_skb()
+```
+## iwl_mvm_tx_skb()
+```c++
 int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		   struct ieee80211_sta *sta)
 {
@@ -291,8 +301,9 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 	
 }
-
-##iwl_mvm_tx_mpdu()
+```
+## iwl_mvm_tx_mpdu()
+```c++
 static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			   struct ieee80211_tx_info *info,
 			   struct ieee80211_sta *sta)
@@ -301,3 +312,4 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct iwl_mvm_sta *mvmsta;
 		
 }
+```

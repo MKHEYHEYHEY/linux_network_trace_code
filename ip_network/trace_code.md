@@ -3,17 +3,17 @@
 ```c++
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)  
 {  
-&#9;struct net_device *orig_dev;  
-&#9;skb_reset_network_header(skb);  
-&#9;if (!skb_transport_header_was_set(skb))
-&#9;&#9;skb_reset_transport_header(skb);  
-&#9;skb_reset_mac_len(skb);  
-&#9;skb->skb_iif = skb->dev->ifindex;  
-&#9;list_for_each_entry_rcu(ptype, &skb->dev->ptype_all, list)  
-&#9;{	//跟據協議交給network 層作處理, 例ip, arp  
-&#9;&#9;if (pt_prev)	ret = deliver_skb(skb, pt_prev, orig_dev);  
-&#9;&#9;pt_prev = ptype;  
-&#9;}  
+	struct net_device *orig_dev;  
+	skb_reset_network_header(skb);  
+	if (!skb_transport_header_was_set(skb))
+	&#9;skb_reset_transport_header(skb);  
+	skb_reset_mac_len(skb);  
+	skb->skb_iif = skb->dev->ifindex;  
+	list_for_each_entry_rcu(ptype, &skb->dev->ptype_all, list)  
+	{	//跟據協議交給network 層作處理, 例ip, arp  
+		if (pt_prev)	ret = deliver_skb(skb, pt_prev, orig_dev);  
+		pt_prev = ptype;  
+	}  
 }  
 ```
 ## deliver_skb ()

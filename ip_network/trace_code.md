@@ -1,5 +1,5 @@
-#Receive Packet
-##__netif_receive_skb_core()
+# Receive Packet
+## __netif_receive_skb_core()
 
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 {
@@ -15,7 +15,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 	}
 }
 
-##deliver_skb ()
+## deliver_skb ()
 
 static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,			      struct net_device *orig_dev)
 {
@@ -30,7 +30,7 @@ static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,		
 //跟據不同的protocol 做不同的處理, 例:ip_rcv, arp_rcv
 
 
-##ip_rcv()
+## ip_rcv()
 ![image](https://github.com/MKHEYHEYHEY/linux_network_trace_code/blob/master/ip_network/pic/0_ip_rcv.png)
 
 ##ip_rcv_finish()

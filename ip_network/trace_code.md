@@ -1,6 +1,6 @@
 # Receive Packet
 ## __netif_receive_skb_core()
-
+```c++
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)  
 {  
 &#9;struct net_device *orig_dev;  
@@ -15,7 +15,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 &#9;&#9;pt_prev = ptype;  
 &#9;}  
 }  
-
+```
 ## deliver_skb ()
 
 static inline int deliver_skb(struct sk_buff *skb,struct packet_type *pt_prev,			      struct net_device *orig_dev)
